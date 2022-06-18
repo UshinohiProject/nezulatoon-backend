@@ -159,3 +159,30 @@ function testGetSavedImageID() {
   var savedImageID = getSavedImageID(map);
   console.log(savedImageID);
 }
+
+// 塗られるエリアをランダムで生成
+function generatePaintedArea(streatName, numPaint) {
+  var paintedCoordinateList = [];
+  for (let i=0; i<numPaint; i++) {
+    //0以上1未満の乱数を生成
+    let rand = Math.random();
+    //1~100の整数になるように数値計算
+    rand = Math.floor(rand*20)+1;
+    console.log(rand);
+    var paintedCoordinate = streatName + String(rand);
+    var indexOfRand = paintedCoordinateList.indexOf(paintedCoordinate);
+    console.log(indexOfRand);
+    if (indexOfRand = -1) {
+      paintedCoordinateList.push(paintedCoordinate);
+    } else {
+      i = i - 1;
+    }
+    console.log(paintedCoordinateList);
+  }
+  return (paintedCoordinateList)
+}
+
+function testGeneratePaintedArea() {
+  var paintedCoordinateList = generatePaintedArea("a", 3);
+  console.log(paintedCoordinateList);
+}
