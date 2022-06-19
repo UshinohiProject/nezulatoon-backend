@@ -1,4 +1,13 @@
-var saveImageFolderID = PropertiesService.getScriptProperties().getProperty("SAVE_IMAGE_FOLDER_ID");
+// google drive
+let saveImageFolderID = PropertiesService.getScriptProperties().getProperty("SAVE_IMAGE_FOLDER_ID");
+
+// kintone
+let kintoneAccessToken = PropertiesService.getScriptProperties().getProperty("KINTONE_ACCESS_TOKEN");
+let kintoneAppID = PropertiesService.getScriptProperties().getProperty("KINTONE_APP_ID");
+let kintoneSubDomain = PropertiesService.getScriptProperties().getProperty("KINTONE_SUB_DOMAIN");
+let kintoneUserName = PropertiesService.getScriptProperties().getProperty("KINTONE_USER_NAME");
+let kintoneUserPass = PropertiesService.getScriptProperties().getProperty("KINTONE_USER_PASS");
+
 
 function doGet(e) {
   var streatName = e.parameter.streatName;
@@ -186,3 +195,215 @@ function testGeneratePaintedArea() {
   var paintedCoordinateList = generatePaintedArea("a", 3);
   console.log(paintedCoordinateList);
 }
+
+
+
+var KintoneManager = (function() {
+  "use strict";
+  function KintoneManager(subdomain, apps, user, pass){
+      this.subdomain = subdomain;
+      this.authorization = null;
+      this.apps = apps;
+
+      if (arguments.length > 3) {
+          this.authorization = Utilities.base64Encode(user + ":" + pass);
+      } else if (arguments.length > 2) {
+          // 引数が3つの場合はエンコード済みの認証情報として処理
+          this.authorization = user;
+      }
+  }
+  // レコードの作成
+  KintoneManager.prototype.create = function(app_name, records) {
+      var app = this.apps[app_name];
+      var payload = {
+        app: app.appid,
+        records: records
+      };
+      var response = UrlFetchApp.fetch(
+          "@1/records.json".replace(/@1/g,this._getEndpoint(app.guestid)),
+         this._postOption(app, payload)
+      );
+      return response;
+  };
+    // レコードの検索
+    KintoneManager.prototype.search = function(app_name, query){
+       var q = encodeURIComponent(query);
+       var app = this.apps[app_name];
+       var response = UrlFetchApp.fetch(
+         "@1/records.json?app=@2&query=@3"
+            .replace(/@1/g, this._getEndpoint(app.guestid))
+            .replace(/@2/g, app.appid)
+            .replace(/@3/g, q),
+         this._getOption(app)
+       );
+       return response;
+    };
+    // レコードの更新
+    KintoneManager.prototype.update = function(app_name, records) {
+        var app = this.apps[app_name];
+        var payload = {
+          app: app.appid,
+          records: records
+        };
+        var response = UrlFetchApp.fetch(
+            "@1/records.json".replace(/@1/g, this._getEndpoint(app.guestid)),
+           this._putOption(app, payload)
+        );
+        return response;
+    };
+    // レコードの削除
+    KintoneManager.prototype.destroy = function(app_name, record_ids){
+       var app = this.apps[app_name];
+       var query = "app=" + app.appid;
+       for(var i=0; i<record_ids.length;i++){
+           query += "&ids[@1]=@2".replace(/@1/g,i).replace(/@2/g,record_ids[i]);
+       }
+       var response = UrlFetchApp.fetch(
+         "@1/records.json?@2"
+            .replace(/@1/g, this._getEndpoint(app.guestid))
+            .replace(/@2/g, query),
+         this._deleteOption(app)
+       );
+       return response;
+    };
+    // GETメソッドの時のオプション情報
+    KintoneManager.prototype._getOption = function(app) {
+       var option = {
+          method: "get",
+          headers: this._authorizationHeader(app),
+          muteHttpExceptions: true
+       };
+       return option;
+    };
+    // POSTメソッドの時のオプション情報
+    KintoneManager.prototype._postOption = function(app,payload) {
+       var option = {
+               method: "post",
+               contentType: "application/json",
+               headers: this._authorizationHeader(app),
+               muteHttpExceptions: true,
+               payload: JSON.stringify(payload)
+       };
+       return option;
+    };
+    // PUTメソッドの時のオプション情報
+    KintoneManager.prototype._putOption = function(app,payload) {
+       var option = {
+               method: "put",
+               contentType: "application/json",
+               headers: this._authorizationHeader(app),
+               muteHttpExceptions: true,
+               payload: JSON.stringify(payload)
+       };
+       return option;
+    };
+    // DELETEメソッドの時のオプション情報
+    KintoneManager.prototype._deleteOption = function(app) {
+       var option = {
+          method: "delete",
+          headers: this._authorizationHeader(app),
+          muteHttpExceptions: true
+       };
+       return option;
+    };
+    // エンドポイントの取得
+    KintoneManager.prototype._getEndpoint = function(guest_id) {
+      var endpoint = "https://@1.cybozu.com".replace(/@1/g,this.subdomain);
+      if (guest_id == null) {
+        return endpoint + "/k/v1";
+      } else {
+        return endpoint + "/k/guest/@1/v1".replace(/@1/g, guest_id);
+      }
+    };
+    // ヘッダーの認証情報
+    KintoneManager.prototype._authorizationHeader = function(app) {
+      if (this.authorization) {
+         // パスワード認証
+         return { "X-Cybozu-Authorization": this.authorization };
+      } else if (app.token) {
+         // APIトークン認証
+         return { "X-Cybozu-API-Token": app.token };
+      } else {
+        throw new Error("kintone APIを呼ぶための認証情報がありません。");
+      }
+    };
+    return KintoneManager;
+})();
+
+
+var subdomain = kintoneSubDomain;
+// var apps = {
+//   YOUR_APPLICATION1: { appid: 1, name: "nezulatoon_db", token: kintoneAccessToken },
+// };
+
+// console.log(apps);
+
+// var kintone_manager = new KintoneManager(subdomain, apps);
+
+var apps = {
+  YOUR_APPLICATION1: { appid: 1, name: "アプリ１"},
+};
+var user = kintoneUserName;
+var pass = kintoneUserPass;
+
+var kintone_manager = new KintoneManager(subdomain, apps, user, pass);
+
+function sendRecordToKintone(streatName, numPaint, paintColor) {
+  var paintedCoordinateList = generatePaintedArea(streatName, numPaint);
+  console.log("#####");
+  console.log(paintedCoordinateList);
+
+
+  console.log(paintedCoordinateList.length);
+
+  var insertData = '[{"id": 1, "record": {';
+  for (let i=0; i<paintedCoordinateList.length; i++) {
+    var paintedCoordinate = paintedCoordinateList[i];
+    var record = Utilities.formatString('"%s": {"value": "%s"}', paintedCoordinate, paintColor);
+    insertData += record;
+    if (i != paintedCoordinateList.length - 1) {
+      insertData += ",";
+    }
+  }
+  insertData += '}}]';
+
+  console.log(insertData);
+  console.log("#####");
+  var records = JSON.parse(insertData);
+  console.log("#####");
+  console.log(records);
+
+  var response = kintone_manager.update("YOUR_APPLICATION1", records);
+  console.log("response: ");
+  console.log(response);
+  // ステータスコード
+  // 成功すれば200になる
+  var code = response.getResponseCode();
+  console.log("######");
+  console.log(response.getContentText());
+  console.log("STATUS: ");
+  console.log(code);
+}
+
+function testSendRecordToKintone(){
+  var streatName = "a";
+  var numPaint = 3;
+  var paintColor = "red";
+  sendRecordToKintone(streatName, numPaint, paintColor);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
