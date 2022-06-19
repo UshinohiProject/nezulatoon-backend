@@ -14,6 +14,8 @@ function doGet(e) {
   var weaponName = e.parameter.weaponName;
   var latitude = e.parameter.latitude;
   var longitude = e.parameter.longitude;
+  var numPaint = 1;
+  var paintColor;
 
   //MapのBlob(Binary Large Object)を作る。
   var map = Maps.newStaticMap()
@@ -34,6 +36,18 @@ function doGet(e) {
     longitude:longitude,
     savedImageID:savedImageID
   };
+
+  if (weaponName != "NormalGun") {
+    numPaint = 3;
+  }
+  if (streatName == "八重垣謝恩会") {
+    paintColor = "red";
+  } else if (streatName == "根津銀座通り商睦会") {
+    paintColor = "blue";
+  } else {
+    paintColor = "green";
+  }
+  sendRecordToKintone(streatName, numPaint, paintColor)
 
   return ContentService.createTextOutput(JSON.stringify(response)).setMimeType(ContentService.MimeType.JSON);
 }
